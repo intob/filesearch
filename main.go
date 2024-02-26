@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -36,7 +37,7 @@ func main() {
 
 	// 8 gophers complete the tasks
 	wg := &sync.WaitGroup{}
-	for i := 0; i < 8; i++ {
+	for i := 0; i < runtime.NumCPU()*2; i++ {
 		wg.Add(1)
 		go func() {
 			for task := range tasks {
@@ -51,9 +52,13 @@ func main() {
 		close(found)
 	}()
 
+	var fileCount uint32
 	for count := range found {
 		total += count
-		fmt.Printf("\rtotal: %s\033[0K", jfmt.FmtCount32(total))
+		fileCount++
+		fmt.Printf("\rsearched: %s, found: %s\033[0K",
+			jfmt.FmtCount32(fileCount),
+			jfmt.FmtCount32(total))
 	}
 
 	fmt.Printf("\ndone")
@@ -73,10 +78,13 @@ func searchFile(filePath, searchText string, found chan<- uint32) {
 
 	scanner := bufio.NewScanner(file)
 
+	var count uint32
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), searchText) {
-			found <- 1
+			count = 1
 			break // count at most once per file
 		}
 	}
+
+	found <- count
 }
